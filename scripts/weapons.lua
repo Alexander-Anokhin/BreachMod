@@ -1,14 +1,57 @@
+local path = mod_loader.mods[modApi.currentMod].scriptPath
+local trait = require(path .."libs/trait")
+local customAnim = require(path .."libs/customAnim")
+
+local traitfunc_radiation = function(trait, pawn)
+	if GetCurrentMission() then
+		if GetCurrentMission().irradiated_targets then
+			if GetCurrentMission().irradiated_targets[pawn:GetId()] then
+				return true
+			end
+		else
+			GetCurrentMission().irradiated_targets = {}
+		end
+	end
+	return false
+end
+
+trait:add {
+    func = traitfunc_radiation,
+    icon = mod_loader.mods[modApi.currentMod].resourcePath.."img/effects/icon_radiation.png",
+    icon_glow = mod_loader.mods[modApi.currentMod].resourcePath.."img/effects/icon_radiation.png",
+    desc_title = "Radiation",
+    desc_text = "This unit will take 1 damage for every other 2 irradiated units at the start of next turn."
+}
+
+local function IsIrradiated(point)
+	if not Board:IsPawnSpace(point) then return false end
+
+	if GetCurrentMission() then
+		if not GetCurrentMission().irradiated_targets then
+			GetCurrentMission().irradiated_targets = {}
+		end
+
+		if GetCurrentMission().irradiated_targets[Board:GetPawn(point):GetId()] then return true end
+	end
+
+	return false
+end
+
+function AttachIrradiatedAnimation(id)
+	customAnim:add(id, "irradiated_loop")
+end
+
 Test_Punch = Skill:new {
     Name = "Test Punch",
     Description = "The testest of punches",
     Class = "",
-    Icon = "weapons/prime_punchmech.png",
+    Icon = "combat/icon_bishop_move.png",
     Rarity = 1,
     Explosion = "",
     LaunchSound = "/weapons/titan_fist",
 	Range = 1, -- Tooltip?
 	PathSize = 1,
-	Damage = 10,
+	Damage = 1,
 	PushBack = false,
 	Flip = true,
 	Dash = false,
@@ -25,8 +68,70 @@ Test_Punch = Skill:new {
 function Test_Punch:GetSkillEffect(p1, p2)
     local ret = SkillEffect()
     local direction = GetDirection(p2 - p1)
-    ret:AddMelee(p1, SpaceDamage(p2, self.Damage, direction))
+	local damage = SpaceDamage(p2, self.Damage, direction)
+
+	if Board:IsPawnSpace(p2) then
+
+		-- Apply radiation
+		if not IsIrradiated(p2) then
+			local target_id = Board:GetPawn(p2):GetId()
+			ret:AddScript([[
+				AttachIrradiatedAnimation(]] ..target_id.. [[)
+				GetCurrentMission().irradiated_targets[]] ..target_id.. [[] = 10
+			]])
+		end
+
+		-- Custom status preview icon
+		damage.sImageMark = "effects/icon_radiation_glow.png"
+	end
+
+	ret:AddMelee(p1, damage)
+
     return ret
+end
+
+Toxic_Missile = TankDefault:new {
+	Name = "Toxic Missile",
+	Description = "Irradiate and push a target.",
+	Class = "Brute",
+	Damage = 0,
+	Icon = "weapons/brute_tankmech.png",
+	Explosion = "",
+	Sound = "/general/combat/explode_small",
+	Projectile = "effects/shot_mechtank",
+	PowerCost = 0,
+	Upgrades = 1,
+	UpgradeCost = {2},
+	LaunchSound = "/weapons/modified_cannons",
+	ImpactSound = "/impact/generic/explosion",
+	TipImage = StandardTips.Ranged,
+	ZoneTargeting = ZONE_DIR
+}
+
+Weapon_Texts.Toxic_Missile_Upgrade1 = "+1 Damage"
+
+Toxic_Missile_A = Toxic_Missile:new {
+	UpgradeDescription = "Increases damage by 1.",
+	Damage = 1
+}
+
+function Toxic_Missile:GetSkillEffect(p1, p2)
+	local ret = SkillEffect()
+	local dir = GetDirection(p2 - p1)
+
+	local target = GetProjectileEnd(p1,p2)
+
+	local damage = SpaceDamage(target, self.Damage, dir)
+	damage.sAnimation = "airpush_"..dir
+
+	local smoke = SpaceDamage(p1 - DIR_VECTORS[dir], 0)
+	smoke.iSmoke = 1
+	smoke.sAnimation = "exploout0_"..GetDirection(p1 - p2)
+	ret:AddDamage(smoke)
+
+	ret:AddProjectile(damage, self.Projectile)
+
+	return ret
 end
 
 Smoke_Grenade = LineArtillery:new {
