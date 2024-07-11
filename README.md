@@ -5,7 +5,7 @@ A collection of simple mods for the tactical video game Into The Breach. Created
 A squad focused on spreading radiation to their enemies.
 
 ##### Irradiated Enemies
-Irradiated enemies stay irradiated until the end of the game. Irradiated enemies take 1 damage for every 2 irradiated enemies on the board (rounded down). This damage ignores armor and ACID.
+Irradiated enemies stay irradiated until the end of the game. Irradiated enemies take 1 damage for every 2 irradiated enemies on the board (rounded down) at the end of each turn. This damage ignores armor and ACID.
 
 ##### Desolator/Contamination Mech
 Toxic Missile: Irradiate target, release smoke in the back
