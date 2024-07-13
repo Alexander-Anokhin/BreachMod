@@ -37,26 +37,53 @@ local function radiationDamageHook(mission)
         local irradiated_targets = GetCurrentMission().irradiated_targets
         if irradiated_targets then
 
-            targets_count = 0
-            for k, v in pairs(irradiated_targets) do
-                targets_count = targets_count + 1
-            end
+            --targets_count = 0
+            --for k, v in pairs(irradiated_targets) do
+            --    targets_count = targets_count + 1
+            --end
 
-            damage_amount = math.floor(targets_count / 2)
+            damage_amount = 0--math.floor(targets_count / 2)
             
-            local effect = SkillEffect()
-            effect:AddDamage(SpaceDamage(Point(0,0))) -- make sure effect isnt empty
+            --local effect = SkillEffect()
+            --effect:AddSafeDamage(SpaceDamage(Point(0,0))) -- make sure effect isnt empty
             
             for k, v in pairs(irradiated_targets) do
                 pawn = Board:GetPawn(k)
                 if pawn then
-                    local damage = SpaceDamage(pawn:GetSpace(), damage_amount)
-                    damage.sSound = "/mech/science/mech/death"
-                    effect:AddDamage(damage)
+                    
+                    local effect = SkillEffect()
+                    local old_max_health = pawn:GetMaxHealth()
+                    local old_health = pawn:GetHealth()
+                    LOG("start: " ..old_health.. "/" ..old_max_health)
+
+                    effect:AddScript([[
+                        local pawn1 = Board:GetPawn(]] ..k.. [[)
+                        pawn1:SetMaxHealth(99)
+                        pawn1:SetHealth(99)
+
+                        modApi:runLater(function()
+                            local pawn2 = Board:GetPawn(]] ..k.. [[)
+                            local effect = SkillEffect()
+                            local dmg = SpaceDamage(pawn2:GetSpace(), 3)
+                            effect:AddSafeDamage(dmg)
+                            Board:AddEffect(effect)
+
+                            modApi:runLater(function()
+                                local pawn3 = Board:GetPawn(]] ..k.. [[)
+                                local new_health = ]] ..old_health.. [[ - 1
+                                local new_max_health = ]] ..old_max_health.. [[
+                                pawn3:SetHealth(new_health)
+                                pawn3:SetMaxHealth(new_max_health)
+                                LOG("end: " ..new_health.. "/" ..new_max_health)
+                            end)
+                        end)
+			        ]])
+                    
+                    Board:AddEffect(effect)
                 end
             end
 
-            Board:AddEffect(effect)
+            --Board:AddEffect(effect)
 
             LOG("Radiation targets: "..targets_count.." Radiation level: "..damage_amount)
         end
