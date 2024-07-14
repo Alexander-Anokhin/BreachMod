@@ -1,45 +1,4 @@
 local path = mod_loader.mods[modApi.currentMod].scriptPath
-local trait = require(path .."libs/trait")
-local customAnim = require(path .."libs/customAnim")
-
-local traitfunc_radiation = function(trait, pawn)
-	if GetCurrentMission() then
-		if GetCurrentMission().irradiated_targets then
-			if GetCurrentMission().irradiated_targets[pawn:GetId()] then
-				return true
-			end
-		else
-			GetCurrentMission().irradiated_targets = {}
-		end
-	end
-	return false
-end
-
-trait:add {
-    func = traitfunc_radiation,
-    icon = mod_loader.mods[modApi.currentMod].resourcePath.."img/effects/icon_radiation.png",
-    icon_glow = mod_loader.mods[modApi.currentMod].resourcePath.."img/effects/icon_radiation.png",
-    desc_title = "Radiation",
-    desc_text = "This unit will take 1 damage for every other 2 irradiated units at the start of next turn."
-}
-
-local function IsIrradiated(point)
-	if not Board:IsPawnSpace(point) then return false end
-
-	if GetCurrentMission() then
-		if not GetCurrentMission().irradiated_targets then
-			GetCurrentMission().irradiated_targets = {}
-		end
-
-		if GetCurrentMission().irradiated_targets[Board:GetPawn(point):GetId()] then return true end
-	end
-
-	return false
-end
-
-function AttachIrradiatedAnimation(id)
-	customAnim:add(id, "irradiated_loop")
-end
 
 Test_Punch = Skill:new {
     Name = "Test Punch",
