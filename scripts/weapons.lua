@@ -1,4 +1,10 @@
-local path = mod_loader.mods[modApi.currentMod].scriptPath
+local script_path = mod_loader.mods[modApi.currentMod].scriptPath
+local radiation = require(script_path .."radiation")
+local customAnim = require(script_path .."libs/customAnim")
+
+function AttachIrradiatedAnimation(id)
+	customAnim:add(id, "irradiated_loop")
+end
 
 Test_Punch = Skill:new {
     Name = "Test Punch",
@@ -32,7 +38,7 @@ function Test_Punch:GetSkillEffect(p1, p2)
 	if Board:IsPawnSpace(p2) then
 
 		-- Apply radiation
-		if not IsIrradiated(p2) then
+		if not radiation.IsIrradiated(p2) then
 			local target_id = Board:GetPawn(p2):GetId()
 			ret:AddScript([[
 				AttachIrradiatedAnimation(]] ..target_id.. [[)

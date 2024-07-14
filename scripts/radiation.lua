@@ -1,19 +1,6 @@
 local script_path = mod_loader.mods[modApi.currentMod].scriptPath
 local resource_path = mod_loader.mods[modApi.currentMod].resourcePath
 local trait = require(script_path .."libs/trait")
-local customAnim = require(script_path .."libs/customAnim")
-
-trait:add {
-    func = traitfunc_radiation,
-    icon = resource_path.."img/effects/icon_radiation.png",
-    icon_glow = resource_path.."img/effects/icon_radiation.png",
-    desc_title = "Radiation",
-    desc_text = "This unit will take 1 damage for every other 2 irradiated units at the start of next turn."
-}
-
-local traitfunc_radiation = function(trait, pawn)
-	return IsIrradiated(pawn:GetSpace())
-end
 
 local function IsIrradiated(point)
 	if not Board:IsPawnSpace(point) then return false end
@@ -29,11 +16,19 @@ local function IsIrradiated(point)
 	return false
 end
 
-local function AttachIrradiatedAnimation(id)
-	customAnim:add(id, "irradiated_loop")
+local traitfunc_radiation = function(trait, pawn)
+	return IsIrradiated(pawn:GetSpace())
 end
 
--- hook for the pre-environment phase
+trait:add {
+    func = traitfunc_radiation,
+    icon = resource_path.."img/effects/icon_radiation.png",
+    icon_glow = resource_path.."img/effects/icon_radiation.png",
+    desc_title = "Radiation",
+    desc_text = "This unit will take 1 damage for every other 2 irradiated units at the start of next turn."
+}
+
+-- hook for the post-environment phase
 local function DoRadiationDamage(mission)
     if GetCurrentMission() then
         local irradiated_targets = GetCurrentMission().irradiated_targets
@@ -44,27 +39,36 @@ local function DoRadiationDamage(mission)
                 targets_count = targets_count + 1
             end
 
-            damage_amount = 0--math.floor(targets_count / 2)
+            local damage_amount = math.floor(targets_count / 2)
             
+            local effect = SkillEffect()
+            effect:AddDamage(SpaceDamage(Point(0,0))) -- make sure effect isn't empty
+
             for k, v in pairs(irradiated_targets) do
                 local pawn = Board:GetPawn(k)
                 if pawn then
-                    
-                    local effect = SkillEffect()
+
                     local health = pawn:GetHealth()
+                    effect:AddBoardShake(0.3)
+                    effect:AddAnimation(pawn:GetSpace(), "radiation_boom", ANIM_NO_DELAY)
+                    effect:AddSound((_G[pawn:GetType()].SoundLocation).."hurt")
                     effect:AddScript([[
                         local p = Board:GetPawn(]] ..k.. [[)
-                        p:SetHealth(]] ..(health - 1).. [[)
+                        p:SetHealth(]] ..(health - damage_amount).. [[)
+                        Board:AddAlert(p:GetSpace(), "Radiation Damage")
                     ]])
-                    effect:AddSound((_G[pawn:GetType()].SoundLocation).."hurt")
-					--effect:AddBoardShake(0.3)
-                    Board:AddEffect(effect)
-                    Board:AddAlert(pawn:GetSpace(), "Radiation Damage")
-                    Board:AddAnimation(pawn:GetSpace(), "radiation_boom", ANIM_NO_DELAY)
+                    effect:AddDelay(1.2)
                 end
             end
 
+            Board:AddEffect(effect)
+            
             LOG("Radiation targets: "..targets_count.." Radiation level: "..damage_amount)
         end
     end
 end
+
+return {
+    DoRadiationDamage = DoRadiationDamage,
+    IsIrradiated = IsIrradiated
+}

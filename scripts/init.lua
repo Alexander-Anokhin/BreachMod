@@ -43,7 +43,7 @@ ANIMS.radiation_boom = Animation:new{
 
 function mod:load(options, version)
     local radiation_controller = require(self.scriptPath.."radiation")
-    modApi:addPreEnvironmentHook(radiation_controller.DoRadiationDamage)
+    modApi:addPostEnvironmentHook(radiation_controller.DoRadiationDamage)
 end
 
 return mod
