@@ -60,23 +60,35 @@ Toxic_Missile = TankDefault:new {
 	Description = "Irradiate and push a target.",
 	Class = "Brute",
 	Damage = 0,
+	Smoke = 0,
 	Icon = "weapons/brute_tankmech.png",
 	Explosion = "",
 	Sound = "/general/combat/explode_small",
 	Projectile = "effects/shot_mechtank",
 	PowerCost = 0,
-	Upgrades = 1,
-	UpgradeCost = {2},
+	Upgrades = 2,
+	UpgradeCost = {1,2},
 	LaunchSound = "/weapons/modified_cannons",
 	ImpactSound = "/impact/generic/explosion",
 	TipImage = StandardTips.Ranged,
 	ZoneTargeting = ZONE_DIR
 }
 
-Weapon_Texts.Toxic_Missile_Upgrade1 = "+1 Damage"
+Weapon_Texts.Toxic_Missile_Upgrade1 = "Vent Smoke"
+Weapon_Texts.Toxic_Missile_Upgrade2 = "+1 Damage"
 
 Toxic_Missile_A = Toxic_Missile:new {
+	UpgradeDescription = "Vent smoke behind your mech.",
+	Smoke = 1
+}
+
+Toxic_Missile_B = Toxic_Missile:new {
 	UpgradeDescription = "Increases damage by 1.",
+	Damage = 1
+}
+
+Toxic_Missile_AB = Toxic_Missile:new {
+	Smoke = 1,
 	Damage = 1
 }
 
@@ -84,16 +96,33 @@ function Toxic_Missile:GetSkillEffect(p1, p2)
 	local ret = SkillEffect()
 	local dir = GetDirection(p2 - p1)
 
-	local target = GetProjectileEnd(p1,p2)
+	local target_pos = GetProjectileEnd(p1,p2)
+	local target_pawn = Board:GetPawn(target_pos)
 
-	local damage = SpaceDamage(target, self.Damage, dir)
+	local damage = SpaceDamage(target_pos, self.Damage, dir)
 	damage.sAnimation = "airpush_"..dir
 
-	local smoke = SpaceDamage(p1 - DIR_VECTORS[dir], 0)
-	smoke.iSmoke = 1
-	smoke.sAnimation = "exploout0_"..GetDirection(p1 - p2)
-	ret:AddDamage(smoke)
+	if target_pawn then
+		-- Apply radiation
+		if not radiation.IsIrradiated(target_pos) then
+			local target_id = target_pawn:GetId()
+			ret:AddScript([[
+				AttachIrradiatedAnimation(]] ..target_id.. [[)
+				GetCurrentMission().irradiated_targets[]] ..target_id.. [[] = 10
+			]])
+		end
 
+		-- Custom status preview icon
+		damage.sImageMark = "effects/icon_radiation_glow.png"
+	end
+
+	if self.Smoke > 0 then
+		local smoke = SpaceDamage(p1 - DIR_VECTORS[dir], 0)
+		smoke.iSmoke = 1
+		smoke.sAnimation = "exploout0_"..GetDirection(p1 - p2)
+		ret:AddDamage(smoke)
+	end
+	
 	ret:AddProjectile(damage, self.Projectile)
 
 	return ret
