@@ -1,9 +1,17 @@
 local script_path = mod_loader.mods[modApi.currentMod].scriptPath
 local radiation = require(script_path .."radiation")
 local customAnim = require(script_path .."libs/customAnim")
+local trait = require(script_path .."libs/trait")
 
-function AttachIrradiatedAnimation(id)
+function ApplyRadiation(id)
+	-- add to list
+	GetCurrentMission().irradiated_targets[id] = 1
+
+	-- attach animation
 	customAnim:add(id, "irradiated_loop")
+
+	-- manually update traitlib (without this doesn't work with failed pushes sometimes)
+	trait:update(Board:GetPawn(id):GetSpace())
 end
 
 Test_Punch = Skill:new {
@@ -41,8 +49,7 @@ function Test_Punch:GetSkillEffect(p1, p2)
 		if not radiation.IsIrradiated(p2) then
 			local target_id = Board:GetPawn(p2):GetId()
 			ret:AddScript([[
-				AttachIrradiatedAnimation(]] ..target_id.. [[)
-				GetCurrentMission().irradiated_targets[]] ..target_id.. [[] = 10
+				ApplyRadiation(]] ..target_id.. [[)
 			]])
 		end
 
@@ -53,6 +60,67 @@ function Test_Punch:GetSkillEffect(p1, p2)
 	ret:AddMelee(p1, damage)
 
     return ret
+end
+
+Nuclear_Pulse = Skill:new {
+	Name = "Nuclear Pulse",
+	Description = "Irradiate and push surrounding targets.",
+	PathSize = 1,
+	Class = "Science",
+	Icon = "weapons/science_repulse.png",
+	LaunchSound = "/weapons/science_repulse",
+	Damage = 0,
+	PowerCost = 0, --AE Change
+	Upgrades = 0,
+	ZoneTargeting = ZONE_ALL,
+	TipImage = StandardTips.Surrounded
+}
+
+function Nuclear_Pulse:GetTargetArea(point)
+	local ret = PointList()
+	ret:push_back(point)
+	for i = DIR_START, DIR_END do
+		ret:push_back(point + DIR_VECTORS[i])
+	end
+	
+	return ret
+end
+
+function Nuclear_Pulse:GetSkillEffect(p1, p2)
+	local ret = SkillEffect()
+
+	ret:AddBounce(p1,-2)
+
+	for i = DIR_START,DIR_END do
+		local target_pos = p1 + DIR_VECTORS[i]
+		local damage = SpaceDamage(target_pos, 0, i)
+		
+		damage.sAnimation = "radiation_push_"..i
+
+		local target_pawn = Board:GetPawn(target_pos)
+
+		if target_pawn then
+			-- Apply radiation
+			if not radiation.IsIrradiated(target_pos) then
+				local target_id = target_pawn:GetId()
+				ret:AddScript([[
+					ApplyRadiation(]] ..target_id.. [[)
+				]])
+			end
+
+			-- Custom status preview icon
+			damage.sImageMark = "effects/icon_radiation_glow.png"
+		end
+
+		ret:AddDamage(damage)
+		ret:AddBounce(target_pos,-1)
+	end
+
+	local selfDamage = SpaceDamage(p1, 0)
+	selfDamage.sAnimation = "radiation_boom"
+	ret:AddDamage(selfDamage)
+
+	return ret
 end
 
 Toxic_Missile = TankDefault:new {
@@ -107,8 +175,7 @@ function Toxic_Missile:GetSkillEffect(p1, p2)
 		if not radiation.IsIrradiated(target_pos) then
 			local target_id = target_pawn:GetId()
 			ret:AddScript([[
-				AttachIrradiatedAnimation(]] ..target_id.. [[)
-				GetCurrentMission().irradiated_targets[]] ..target_id.. [[] = 10
+				AddRadiationToTarget(]] ..target_id.. [[)
 			]])
 		end
 
