@@ -62,6 +62,89 @@ function Test_Punch:GetSkillEffect(p1, p2)
     return ret
 end
 
+Radiation_Flash = Skill:new {
+	Name = "Radiation Flash",
+	Description = "Flip and damage nearby tile. Affect sides if irradiated.",
+	Class = "Science",
+	Icon = "advanced/weapons/Science_KO_Crack.png",
+	ImpactSound = "/weapons/ko_crack",
+	NuclearWaste = 0,
+	Damage = 1,
+	PathSize = 1,
+	PowerCost = 0,
+	Upgrades = 2,
+	UpgradeCost = {1,2},
+	LaunchSound = "/weapons/crack",
+	BombSound = "/impact/generic/explosion",
+	OnKill = "",
+	Explosion = ""
+}
+
+Weapon_Texts.Radiation_Flash_Upgrade1 = "Spread Waste"
+Weapon_Texts.Radiation_Flash_Upgrade2 = "+1 Damage"
+
+Radiation_Flash_A = Radiation_Flash:new {
+	UpgradeDescription = "Creates a Nuclear Waste tile on kill.",
+	OnKill = "Create Waste",
+	NuclearWaste = 1
+}
+
+Radiation_Flash_B = Radiation_Flash:new {
+	UpgradeDescription = "Increases damage by 1.",
+	Damage = 2
+}
+
+Radiation_Flash_AB = Radiation_Flash:new {
+	NuclearWaste = 1,
+	Damage = 2
+}
+
+function Radiation_Flash:GetSkillEffect(p1, p2)
+	local ret = SkillEffect()
+	local direction = GetDirection(p2 - p1)
+
+	local damage = SpaceDamage(p2, self.Damage, DIR_FLIP)
+	damage.sAnimation = "radiation_boom"
+	--damage.sSound = self.LaunchSound
+
+	if Board:IsPawnSpace(p2) then
+		if radiation.IsIrradiated(p2) then
+			local push1 = SpaceDamage(p2 + DIR_VECTORS[(direction+1)%4], self.Damage, (direction+1)%4)
+			push1.sAnimation = "radiation_push_"..((direction+1)%4)
+			ret:AddDamage(push1) 
+			local push2 = SpaceDamage(p2 + DIR_VECTORS[(direction-1)%4], self.Damage, (direction-1)%4)
+			push2.sAnimation = "radiation_push_"..((direction-1)%4)
+			ret:AddDamage(push2)
+			ret:AddBounce(p2, 1)
+		end
+	end
+	
+	if Self.NuclearWaste then
+		if Board:IsDeadly(damage,Pawn) then
+			damage.bKO_Effect = true
+		end
+	end
+	--ret:AddMelee(p2 - DIR_VECTORS[direction], damage)
+	ret:AddMelee(p1, damage)
+
+	--[[
+	if Board:IsDeadly(damage, Pawn) then
+		for i = DIR_START, DIR_END do
+			local damageside = SpaceDamage(target+DIR_VECTORS[i], 0)
+			damageside.iCrack = EFFECT_CREATE   
+			ret:AddDamage(damageside)
+			ret:AddBurst(target+DIR_VECTORS[i],"Emitter_Crack_Start",DIR_NONE)
+			ret:AddBounce(target+DIR_VECTORS[i],-1)
+		end
+		damage.iCrack = EFFECT_CREATE   
+		ret:AddBurst(target,"Emitter_Crack_Start",DIR_NONE)
+		ret:AddSound("/weapons/crack_ko")
+		ret:AddBounce(target,-2)
+	end
+	]]--
+	return ret
+end
+
 Nuclear_Pulse = Skill:new {
 	Name = "Nuclear Pulse",
 	Description = "Irradiate and push surrounding targets.",
