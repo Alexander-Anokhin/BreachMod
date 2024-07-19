@@ -14,6 +14,62 @@ function ApplyRadiation(id)
 	trait:update(Board:GetPawn(id):GetSpace())
 end
 
+Radion_Siphon = Skill:new {
+	Name = "Radion Siphon",
+	Description = "If 6 targets are irradiated, earn 1 grid power.",
+	Class = "",
+	Icon = "combat/icon_bishop_move.png",
+	Damage = 0,
+	PowerCost = 0, -- 1!
+	Upgrades = 2,
+	UpgradeCost = {2,2},
+	LaunchSound = "/weapons/crack",
+	Limited = 1,
+	RadTargetsMin = 2,
+	Passive = "Radiation_Immunity"
+}
+
+Weapon_Texts.Radion_Siphon_Upgrade1 = "+1 Damage"
+Weapon_Texts.Radion_Siphon_Upgrade2 = "Radiation Immunity"
+
+Radion_Siphon_A = Radion_Siphon:new {
+	UpgradeDescription = "Increases damage by 1.",
+	Damage = 1
+}
+
+Radion_Siphon_B = Radion_Siphon:new {
+	UpgradeDescription = "Mechs are immune to radiation.",
+	Passive = "Radiation_Immunity"
+}
+
+Radion_Siphon_AB = Radion_Siphon:new {
+	Damage = 1,
+	Passive = "Radiation_Immunity"
+}
+
+function Radion_Siphon:GetTargetArea(point)
+	local ret = PointList()
+
+	if radiation:CountIrradiatedTargets() >= self.RadTargetsMin then
+		for k, v in pairs(GetCurrentMission().irradiated_targets) do
+			local pawn = Board:GetPawn(k)
+			if pawn then
+				ret:push_back(pawn:GetSpace())
+			end
+		end
+	end
+
+	return ret
+end
+
+function Radion_Siphon:GetSkillEffect(p1, p2)
+	local ret = SkillEffect()
+
+	ret:AddAnimation(p1, "radiation_boom", ANIM_DELAY)
+
+	return ret
+end
+
 Test_Punch = Skill:new {
     Name = "Test Punch",
     Description = "The testest of punches",
@@ -119,7 +175,7 @@ function Radiation_Flash:GetSkillEffect(p1, p2)
 		end
 	end
 	
-	if Self.NuclearWaste then
+	if self.NuclearWaste then
 		if Board:IsDeadly(damage,Pawn) then
 			damage.bKO_Effect = true
 		end
@@ -153,10 +209,19 @@ Nuclear_Pulse = Skill:new {
 	Icon = "weapons/science_repulse.png",
 	LaunchSound = "/weapons/science_repulse",
 	Damage = 0,
+	NuclearWaste = 0,
 	PowerCost = 0, --AE Change
-	Upgrades = 0,
+	Upgrades = 1,
+	UpgradeCost = {2},
 	ZoneTargeting = ZONE_ALL,
 	TipImage = StandardTips.Surrounded
+}
+
+Weapon_Texts.Nuclear_Pulse_Upgrade1 = "Spread Waste"
+
+Nuclear_Pulse_A = Nuclear_Pulse:new {
+	UpgradeDescription = "Creates a Nuclear Waste tile under the mech.",
+	NuclearWaste = 1
 }
 
 function Nuclear_Pulse:GetTargetArea(point)
@@ -257,9 +322,10 @@ function Toxic_Missile:GetSkillEffect(p1, p2)
 		-- Apply radiation
 		if not radiation.IsIrradiated(target_pos) then
 			local target_id = target_pawn:GetId()
-			ret:AddScript([[
-				AddRadiationToTarget(]] ..target_id.. [[)
-			]])
+			-- add to damage so applies only when projectile impacts
+			damage.sScript = [[
+				ApplyRadiation(]] ..target_id.. [[)
+			]]
 		end
 
 		-- Custom status preview icon
