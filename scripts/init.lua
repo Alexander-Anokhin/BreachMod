@@ -1,5 +1,3 @@
-local description = "CyberKn1ght test mod"
-
 local mod = {
     id = "Cyber_test",
     name = "Cyber test mod",
@@ -7,11 +5,12 @@ local mod = {
     modApiVersion = "2.9.2",
     gameVersion = "1.2.88",
     icon = "img/mod_icon.png",
-    description = description,
+    description = "CyberKn1ght test mod",
 }
 
 function mod:init()
     require(self.scriptPath.."weapons")
+    require(self.scriptPath.."pawns")
     require(self.scriptPath.."radiation")
 
     modApi:appendAsset("img/combat/icon_bishop_move.png", self.resourcePath.."img/combat/icon_bishop_move.png")
@@ -77,6 +76,18 @@ ANIMS.radiation_push_3 = ANIMS.radiation_push_0:new{
 function mod:load(options, version)
     local radiation_controller = require(self.scriptPath.."radiation")
     modApi:addPostEnvironmentHook(radiation_controller.DoRadiationDamage)
+
+    modApi:addSquad(
+		{
+			"Atomic Desolators",
+			"Reactor_Mech",
+			"Radiation_Mech",
+			"Contamination_Mech"
+		},
+		"Atomic Desolators",
+		"A squad focused around spreading radiation to their enemies.",
+		self.resourcePath .."img/mod_icon.png"
+	)
 end
 
 return mod
