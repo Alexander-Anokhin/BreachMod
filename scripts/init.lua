@@ -35,6 +35,7 @@ function mod:load(options, version)
     local radiation = require(self.scriptPath.."radiation")
     modApi:addPostEnvironmentHook(radiation.DoRadiationDamage)
     modapiext:addPawnHealedHook(radiation.RepairRadiation)
+    modapiext:addPawnKilledHook(radiation.RemoveRadiation)
 
     modApi:addSquad(
 		{

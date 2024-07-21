@@ -55,53 +55,53 @@ local function DoRadiationDamage(mission)
     local targets_count = CountIrradiatedTargets()
     local damage_amount = math.floor(targets_count / 2)
 
-    if targets_count <= 0 or damage_amount <= 0 then
-        return
-    end
+    if targets_count > 0 and damage_amount > 0 then
 
-    local irradiated_targets = GetCurrentMission().irradiated_targets
-    local effect = SkillEffect()
-    effect:AddDamage(SpaceDamage(Point(0,0))) -- make sure effect isn't empty
+        local irradiated_targets = GetCurrentMission().irradiated_targets
+        local effect = SkillEffect()
+        effect:AddDamage(SpaceDamage(Point(0,0))) -- make sure effect isn't empty
 
-    for k, v in pairs(irradiated_targets) do
-        local pawn = Board:GetPawn(k)
-        if pawn then
-            if IsPassiveSkill("Radiation_Immunity") and pawn:IsMech() and not pawn:IsEnemy() then
-                -- pawn is immune to radiation
-                effect:AddAnimation(pawn:GetSpace(), "radiation_boom", ANIM_NO_DELAY)
-                effect:AddSound("/ui/battle/resisted")
-                effect:AddScript([[
-                    local p = Board:GetPawn(]] ..k.. [[)
-                    Board:AddAlert(p:GetSpace(), "Immune")
-                ]])
-                effect:AddDelay(1.2)
-            else
-                -- deal radiation damage as normal
-                local health = pawn:GetHealth()
-                effect:AddBoardShake(0.3)
-                effect:AddAnimation(pawn:GetSpace(), "radiation_boom", ANIM_NO_DELAY)
-
-                if (health - damage_amount <= 0) then
-                    -- death sound
-                    effect:AddSound((_G[pawn:GetType()].SoundLocation).."death")
+        for k, v in pairs(irradiated_targets) do
+            local pawn = Board:GetPawn(k)
+            if pawn then
+                if IsPassiveSkill("Radiation_Immunity") and pawn:IsMech() and not pawn:IsEnemy() then
+                    -- pawn is immune to radiation
+                    effect:AddAnimation(pawn:GetSpace(), "radiation_boom", ANIM_NO_DELAY)
+                    effect:AddSound("/ui/battle/resisted")
+                    effect:AddScript([[
+                        local p = Board:GetPawn(]] ..k.. [[)
+                        Board:AddAlert(p:GetSpace(), "Immune")
+                    ]])
+                    effect:AddDelay(1.2)
                 else
-                    -- hurt sound
-                    effect:AddSound((_G[pawn:GetType()].SoundLocation).."hurt")
+                    -- deal radiation damage as normal
+                    local health = pawn:GetHealth()
+                    effect:AddBoardShake(0.3)
+                    effect:AddAnimation(pawn:GetSpace(), "radiation_boom", ANIM_NO_DELAY)
+
+                    if (health - damage_amount <= 0) then
+                        -- death sound
+                        effect:AddSound((_G[pawn:GetType()].SoundLocation).."death")
+                    else
+                        -- hurt sound
+                        effect:AddSound((_G[pawn:GetType()].SoundLocation).."hurt")
+                    end
+                    
+                    effect:AddScript([[
+                        local p = Board:GetPawn(]] ..k.. [[)
+                        p:SetHealth(]] ..(health - damage_amount).. [[)
+                        Board:AddAlert(p:GetSpace(), "Radiation Damage")
+                    ]])
+                    effect:AddDelay(1.2)
                 end
-                
-                effect:AddScript([[
-                    local p = Board:GetPawn(]] ..k.. [[)
-                    p:SetHealth(]] ..(health - damage_amount).. [[)
-                    Board:AddAlert(p:GetSpace(), "Radiation Damage")
-                ]])
-                effect:AddDelay(1.2)
             end
         end
-    end
 
-    Board:AddEffect(effect)
-    
-    LOG("Radiation targets: "..targets_count.." Radiation level: "..damage_amount)
+        Board:AddEffect(effect)
+        
+        LOG("Radiation targets: "..targets_count.." Radiation level: "..damage_amount)
+
+    end
 end
 
 -- hook for pawnHealedHook
@@ -120,9 +120,19 @@ local function RepairRadiation(mission, pawn, healingTaken)
     end
 end
 
+-- hook for pawnKilledHook
+local function RemoveRadiation(mission, pawn)
+    if GetCurrentMission() then
+        if GetCurrentMission().irradiated_targets then
+            GetCurrentMission().irradiated_targets[pawn:GetId()] = nil
+        end
+    end
+end
+
 return {
     CountIrradiatedTargets = CountIrradiatedTargets,
     DoRadiationDamage = DoRadiationDamage,
     RepairRadiation = RepairRadiation,
-    IsIrradiated = IsIrradiated
+    IsIrradiated = IsIrradiated,
+    RemoveRadiation = RemoveRadiation
 }
