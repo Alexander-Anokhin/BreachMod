@@ -1,3 +1,5 @@
+
+-- test palette
 modApi:addPalette({
 	ID = "AtomicDesolatorPalette",
 	Name = "Radioactive Green",
